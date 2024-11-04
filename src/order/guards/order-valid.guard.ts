@@ -14,20 +14,21 @@ export class RestaurantClientExistGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const { restaurantId, clientId } = request.params;
 
-    // Verificar y obtener el restaurante
+    // verificar si el restaurante y el cliente existen
     const restaurant =
       await this.orderService.verifyRestaurantExists(restaurantId);
-    // Verificar y obtener el cliente
     const client = await this.orderService.verifyClientExists(clientId);
 
     // Adjuntar los objetos `restaurant` y `client` al request para su uso posterior
     request.restaurant = restaurant;
     request.client = client;
 
-    // Verificar si el cliente ya tiene una orden en el mismo día
-    const ordersToday = await this.orderService.getOrderToday(request.params);
-    if (ordersToday.length > 0) {
-      throw new BadRequestException(`Client has already ordered today`);
+    // Verificar si el cliente ya tiene una orden
+    const existOrder = await this.orderService.getOrder(request.params);
+    if (existOrder.length > 0) {
+      throw new BadRequestException(
+        'Client has already placed an active order with this restaurant',
+      );
     }
 
     return true;

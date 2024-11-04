@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
 import { Client } from 'src/client/entities/client.entity';
 import { Restaurant } from 'src/restaurant/entities/restaurant.entity';
-import { PaginationDto } from 'src/common';
+import { OrderPaginationDto } from './dto/order-pagination.dto';
+import { ORDER_STATUS } from './constants/status.constants';
 
 @Injectable()
 export class OrderService {
@@ -31,7 +32,6 @@ export class OrderService {
   ): Promise<Order> {
     const { restaurantId, description } = createOrderDto;
 
-    // Verificar la cantidad máxima de clientes en el restaurante
     const currentOrdersCount = await this.orderRepository.count({
       where: { restaurant: { id: restaurantId } },
     });
@@ -41,7 +41,6 @@ export class OrderService {
       );
     }
 
-    // Crear la orden
     const order = this.orderRepository.create({
       description,
       client,
@@ -50,13 +49,32 @@ export class OrderService {
     return await this.orderRepository.save(order);
   }
 
-  async findAll(paginationDto: PaginationDto, softDelete = false) {
-    const { page = 1, limit = 10 } = paginationDto;
+  async updateStatus(id: string, newStatus: ORDER_STATUS): Promise<Order> {
+    const order = await this.orderRepository.findOne({ where: { id } });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELED].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        'Cannot update status of a delivered or canceled order',
+      );
+    }
+
+    order.status = newStatus;
+    return this.orderRepository.save(order);
+  }
+
+  async findAll(paginationDto: OrderPaginationDto, softDelete = false) {
+    const { page = 1, limit = 10, status } = paginationDto;
 
     const [data, total] = await this.orderRepository.findAndCount({
       skip: (page - 1) * limit,
       take: limit,
-      where: { softDelete },
+      where: { softDelete, ...(status ? { status } : {}) },
     });
 
     return {
@@ -69,25 +87,15 @@ export class OrderService {
     };
   }
 
-  async getOrderToday(order: CreateOrderDto): Promise<Order[]> {
+  async getOrder(order: CreateOrderDto): Promise<Order[]> {
     const { clientId, restaurantId } = order;
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
     return await this.orderRepository.find({
-      where: [
-        {
-          client: { id: clientId },
-          restaurant: { id: restaurantId },
-          createdAt: MoreThanOrEqual(startOfDay),
-        },
-        {
-          client: { id: clientId },
-          restaurant: { id: restaurantId },
-          createdAt: LessThan(endOfDay),
-        },
-      ],
+      where: {
+        client: { id: clientId },
+        restaurant: { id: restaurantId },
+        status: Not(In([ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELED])),
+      },
     });
   }
 
