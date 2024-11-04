@@ -24,28 +24,12 @@ export class OrderService {
     private orderRepository: Repository<Order>,
   ) {}
 
-  async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { clientId, restaurantId, description } = createOrderDto;
-
-    // Verificar que el restaurante existe
-    const restaurant = await this.restaurantRepository.findOne({
-      where: { id: restaurantId },
-      relations: ['orders', 'clients'],
-    });
-    if (!restaurant) {
-      throw new NotFoundException(
-        `Restaurant with ID ${restaurantId} not found`,
-      );
-    }
-
-    // Verificar que el cliente existe
-    const client = await this.clientRepository.findOne({
-      where: { id: clientId },
-      relations: ['orders'],
-    });
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
-    }
+  async create(
+    createOrderDto: CreateOrderDto,
+    client: Client,
+    restaurant: Restaurant,
+  ): Promise<Order> {
+    const { restaurantId, description } = createOrderDto;
 
     // Verificar la cantidad máxima de clientes en el restaurante
     const currentOrdersCount = await this.orderRepository.count({
@@ -55,22 +39,6 @@ export class OrderService {
       throw new BadRequestException(
         `Restaurant has reached maximum client capacity`,
       );
-    }
-
-    // Verificar si el cliente ya tiene una orden en el mismo día
-    const ordersToday = await this.getOrderToday(createOrderDto);
-    if (ordersToday.length > 0) {
-      throw new BadRequestException(`Client has already ordered today`);
-    }
-
-    // Agregar el cliente al restaurante si no está ya incluido
-    if (
-      !restaurant.clients.some(
-        (existingClient) => existingClient.id === client.id,
-      )
-    ) {
-      restaurant.clients.push(client);
-      await this.restaurantRepository.save(restaurant);
     }
 
     // Crear la orden
@@ -121,5 +89,29 @@ export class OrderService {
         },
       ],
     });
+  }
+
+  async verifyRestaurantExists(restaurantId: string): Promise<Restaurant> {
+    const restaurant = await this.restaurantRepository.findOne({
+      where: { id: restaurantId, softDelete: false },
+      relations: ['orders'],
+    });
+    if (!restaurant) {
+      throw new NotFoundException(
+        `Restaurant with ID ${restaurantId} not found`,
+      );
+    }
+    return restaurant;
+  }
+
+  async verifyClientExists(clientId: string): Promise<Client> {
+    const client = await this.clientRepository.findOne({
+      where: { id: clientId, softDelete: false },
+      relations: ['orders'],
+    });
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    }
+    return client;
   }
 }
