@@ -9,7 +9,6 @@ import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { Repository } from 'typeorm';
 import { Restaurant } from './entities/restaurant.entity';
 import { PaginationDto } from 'src/common';
-import { Client } from 'src/client/entities/client.entity';
 import { createRegexPattern, normalizeName } from '../common/constants/utils';
 
 @Injectable()
@@ -92,15 +91,6 @@ export class RestaurantService {
         error.message,
       );
     }
-  }
-
-  async findClientsByRestaurant(restaurantId: string): Promise<Client[]> {
-    const restaurant = await this.restaurantRepository.findOne({
-      where: { id: restaurantId },
-      relations: ['clients'],
-    });
-
-    return restaurant ? restaurant.clients : [];
   }
 
   async findByName(name: string): Promise<Restaurant | null> {

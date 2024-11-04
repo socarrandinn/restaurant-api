@@ -16,6 +16,7 @@ import { PaginationDto } from 'src/common';
 import { FilterSoftDelete } from 'src/common/decorators/filter-soft-delete.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { Restaurant } from 'src/restaurant/entities/restaurant.entity';
+import { Client } from './entities/client.entity';
 
 @FilterSoftDelete()
 @ApiTags('client')
@@ -57,8 +58,22 @@ export class ClientController {
     return this.clientService.remove(id);
   }
 
+  // favorites restaurants
+  @Post(':clientId/wishlist/:restaurantId')
+  async addRestaurantToFavorites(
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+  ): Promise<Client> {
+    return await this.clientService.addRestaurantToFavorites(
+      clientId,
+      restaurantId,
+    );
+  }
+
   @Get(':id/restaurants')
-  async getFavoriteRestaurants(@Param('id') id: string): Promise<Restaurant[]> {
+  async getFavoriteRestaurants(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Restaurant[]> {
     return this.clientService.findFavoriteRestaurants(id);
   }
 }

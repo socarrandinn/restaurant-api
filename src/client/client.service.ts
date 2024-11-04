@@ -16,6 +16,8 @@ export class ClientService {
   constructor(
     @Inject('CLIENT_REPOSITORY')
     private clientRepository: Repository<Client>,
+    @Inject('RESTAURANT_REPOSITORY')
+    private restaurantRepository: Repository<Restaurant>,
   ) {}
 
   async create(createClientDto: CreateClientDto): Promise<Client> {
@@ -90,5 +92,34 @@ export class ClientService {
     });
 
     return client ? client.restaurants : [];
+  }
+
+  async addRestaurantToFavorites(
+    clientId: string,
+    restaurantId: string,
+  ): Promise<Client> {
+    const client = await this.clientRepository.findOne({
+      where: { id: clientId, softDelete: false },
+      relations: ['restaurants'],
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    const restaurant = await this.restaurantRepository.findOne({
+      where: { id: restaurantId, softDelete: false },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    if (client.restaurants.some((r) => r.id === restaurantId)) {
+      throw new BadRequestException('Restaurant is already in favorites');
+    }
+
+    client.restaurants.push(restaurant);
+    return this.clientRepository.save(client);
   }
 }

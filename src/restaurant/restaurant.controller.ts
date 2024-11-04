@@ -15,7 +15,6 @@ import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { FilterSoftDelete } from 'src/common/decorators/filter-soft-delete.decorator';
 import { PaginationDto } from 'src/common';
-import { Client } from 'src/client/entities/client.entity';
 import { ValidateUniqueRestaurantName } from './decorator/restaurant-name.validator';
 @FilterSoftDelete()
 @ApiTags('restaurant')
@@ -56,10 +55,5 @@ export class RestaurantController {
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.restaurantService.remove(id);
-  }
-
-  @Get(':id/clients')
-  async getClients(@Param('id') id: string): Promise<Client[]> {
-    return this.restaurantService.findClientsByRestaurant(id);
   }
 }
