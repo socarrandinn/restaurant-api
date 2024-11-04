@@ -33,8 +33,13 @@ export class OrderService {
     const { restaurantId, description } = createOrderDto;
 
     const currentOrdersCount = await this.orderRepository.count({
-      where: { restaurant: { id: restaurantId } },
+      where: {
+        restaurant: { id: restaurantId },
+        status: In([ORDER_STATUS.PENDING, ORDER_STATUS.TRANSPORTING]),
+        softDelete: false,
+      },
     });
+
     if (currentOrdersCount >= restaurant.capacity) {
       throw new BadRequestException(
         `Restaurant has reached maximum client capacity`,
